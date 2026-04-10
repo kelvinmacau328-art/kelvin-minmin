@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FE3C 庫存管理系統</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="loadingScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s ease;">
+        <h2 style="border: none; margin: 0; letter-spacing: 4px;">FE3C SYSTEM</h2>
+        <p id="loadingText" style="color: #888; font-size: 12px; letter-spacing: 2px;">正在同步雲端庫存資料...</p>
+    </div>
+
+    <h2>📦 FE3C 庫存管理系統 <span>// V6.1 雲端旗艦版</span></h2>
+
+    <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'Overview')" id="defaultOpen">總覽</button>
+        <button class="tablinks" onclick="openTab(event, 'Internal')">內部調整</button>
+        <button class="tablinks" onclick="openTab(event, 'Distributors')">經銷商管理</button>
+    </div>
+
+    <div id="Overview" class="tabcontent">
+        <div class="controls">
+            <div>
+                <button class="btn" onclick="addNewItem()">+ 新增品項</button>
+                <button class="btn btn-outline" style="margin-left: 10px;" onclick="resetData()">⚠️ 恢復預設測試資料</button>
+            </div>
+            <div>
+                <span style="font-size: 11px; color: #888; margin-right: 15px; letter-spacing: 1px;">* 點擊虛線標籤查看明細</span>
+                <input type="text" id="searchInput" class="search-box" placeholder="搜尋貨號或品名..." onkeyup="handleSearchDebounce()">
+            </div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>操作</th><th>貨號</th><th>品名</th><th>尺寸</th><th style="background-color: #f4f7f9;">大貨入庫</th><th>售價</th>
+                        <th style="color:#e84118;">總庫存</th><th style="background-color: #f8f9fa; color: #2980b9;">倉庫庫存</th><th style="color:#e84118;">各店庫存總和</th>
+                    </tr>
+                </thead>
+                <tbody id="overview-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="Internal" class="tabcontent">
+        <div class="controls">
+            <div><span style="font-size: 11px; color: #888; letter-spacing: 1px;">* 點擊虛線標籤即可新增/刪除內部紀錄</span></div>
+            <div>
+                <input type="text" id="new-col-name" class="search-box" placeholder="輸入新欄位名稱...">
+                <button class="btn" onclick="addInternalColumn()">+ 新增自訂欄位</button>
+            </div>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead><tr id="internal-head"></tr></thead>
+                <tbody id="internal-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="Distributors" class="tabcontent">
+        <div class="controls" style="flex-direction: column; align-items: stretch; gap: 20px;">
+            <div style="display:flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 10px;">
+                <div id="dist-level1-tabs" class="dist-tabs"></div>
+                <div style="display:flex; align-items: center; gap: 10px;">
+                    <div style="display:flex; align-items:center; border-bottom: 1px solid #ccc; padding-bottom: 5px;">
+                        <span style="font-size:10px; color:#888; letter-spacing:1px;">選擇顏色 :</span>
+                        <input type="color" id="new-dist-color" value="#000000" style="width:25px; height:25px; border:none; cursor:pointer; padding:0; background:transparent; margin-left:5px;">
+                    </div>
+                    <input type="text" id="new-dist-name" class="search-box" style="width: 140px; margin-bottom: 0;" placeholder="輸入新經銷商">
+                    <button class="btn" onclick="addDistributor()">+ 新增</button>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+            <h3 id="current-dist-title" style="margin: 0; font-weight: 400; letter-spacing: 2px;"></h3>
+            <div style="display:flex; align-items:center;">
+                <span style="font-size: 10px; color: #888; letter-spacing: 1px;">編輯標籤顏色 :</span>
+                <input type="color" id="edit-dist-color" onchange="updateDistColor(this.value)" style="border:none; cursor:pointer; height:20px; width:25px; padding:0; background:transparent; margin-left:8px;">
+            </div>
+        </div>
+        
+        <div class="sub-tab" id="dist-month-tabs"></div>
+        <div class="table-container">
+            <table><thead id="dist-head"></thead><tbody id="dist-body"></tbody></table>
+        </div>
+    </div>
+
+    <div id="stockModal" class="modal-overlay" onclick="closeModal('stockModal', event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="closeModal('stockModal', true)">&times;</span>
+            <div id="modal-title-area"></div>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <div id="internalModal" class="modal-overlay" onclick="closeModal('internalModal', event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="closeModal('internalModal', true)">&times;</span>
+            <div id="internal-modal-title-area"></div>
+            <div id="internal-modal-body"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // 1. Firebase 金鑰設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyCczS48B6ZguyH-e52z2C1CvGTJ5IQY8v8",
+            authDomain: "fe3c-inventory.firebaseapp.com",
+            projectId: "fe3c-inventory",
+            storageBucket: "fe3c-inventory.firebasestorage.app",
+            messagingSenderId: "322270690396",
+            appId: "1:322270690396:web:fd46f37f5ac2b9dfbc7a99"
+        };
+
+        // 2. 初始化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // === 資料庫變數初始化 ===
+        let items = []; let internalColumns = []; let distributors = []; 
+        let distColors = {}; let monthsList = []; let currentDist = ''; 
+        let currentDistView = '總覽';
+
+        // === 防破壞工具：處理字串中的引號 ===
+        function escapeHTML(str) {
+            if (typeof str !== 'string') return str;
+            return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // === 搜尋防抖處理 (Debounce) ===
+        let searchTimeout = null;
+        window.handleSearchDebounce = function() {
+            if (searchTimeout) clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                renderOverview();
+            }, 300); 
+        };
+
+        // === 🔄 讀取資料 (雲端) ===
+        async function loadData() {
+            try {
+                const docRef = doc(db, "inventory", "mainData");
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    let p = docSnap.data();
+                    items = p.items || []; internalColumns = p.internalColumns || []; 
+                    distributors = p.distributors || []; distColors = p.distColors || {}; 
+                    monthsList = p.monthsList || ['1月', '2月', '3月', '4月'];
+                } else {
+                    items = [{ id: 'FE3C146', name: 'TUT Necklace 鐵珠吊墜項鍊', size: 'F', inStock: 50, price: 1280, warehouse: 0, internal: {}, dist: {}, distDetails: {} }];
+                    internalColumns = ['樣品', '瑕疵']; distributors = ['HYST']; distColors = { 'HYST': '#000000' }; monthsList = ['1月', '2月', '3月', '4月'];
+                }
+
+                if (!currentDist && distributors.length > 0) currentDist = distributors[0];
+                
+                // 無痛轉移機制
+                items.forEach(item => {
+                    if (item.distDetails) {
+                        for (let d in item.distDetails) {
+                            if (item.distDetails[d].inbound && item.distDetails[d].inbound > 0) {
+                                if (!item.distDetails[d].months) item.distDetails[d].months = {};
+                                if (!item.distDetails[d].months['1月']) item.distDetails[d].months['1月'] = { carryover: 0, inbound: 0, adj: 0, assist: 0, sales: 0, discount: 0.65, note: '' };
+                                item.distDetails[d].months['1月'].inbound += item.distDetails[d].inbound;
+                                item.distDetails[d].months['1月'].note = item.distDetails[d].months['1月'].note ? item.distDetails[d].months['1月'].note + ' (首批轉移)' : '(首批轉移)';
+                                item.distDetails[d].inbound = 0;
+                            }
+                        }
+                    }
+                });
+                
+                syncDistData();
+                renderAll(); 
+
+                // 🌟 資料載入成功，淡出隱藏 Loading 畫面
+                setTimeout(() => {
+                    const loader = document.getElementById('loadingScreen');
+                    if(loader) {
+                        loader.style.opacity = '0';
+                        setTimeout(() => loader.style.display = 'none', 500);
+                    }
+                }, 300);
+
+            } catch (error) {
+                console.error("讀取資料失敗：", error);
+                document.getElementById('loadingText').innerHTML = "<span style='color:#e74c3c;'>無法連線到雲端資料庫，請檢查網路，或是確認您是否有透過 Live Server 開啟檔案！</span>";
+            }
+        }
+
+        // === 💾 儲存資料 (雲端) ===
+        function saveData() { 
+            syncDistData(); 
+            const docRef = doc(db, "inventory", "mainData");
+            setDoc(docRef, { items, internalColumns, distributors, distColors, monthsList })
+                .catch(error => {
+                    console.error("儲存失敗：", error);
+                    alert("資料儲存失敗，請確認 Firebase 安全規則是否已設為 allow read, write: if true;");
+                });
+        }
+
+        window.resetData = function() { 
+            if(confirm("確定要清除雲端所有資料，恢復預設值嗎？")) { 
+                const docRef = doc(db, "inventory", "mainData");
+                setDoc(docRef, {}).then(() => location.reload());
+            } 
+        };
+
+        window.closeModal = function(id, e) { if (e === true || (e && e.target.id === id)) document.getElementById(id).style.display = 'none'; };
+
+        // === 帳本物件處理 ===
+        window.getInStockObj = function(item) {
+            if (typeof item.inStock === 'number') { item.inStock = { total: item.inStock, logs: item.inStock !== 0 ? [{ date: '-', note: '初始', qty: item.inStock }] : [] }; } 
+            else if (!item.inStock) { item.inStock = { total: 0, logs: [] }; } return item.inStock;
+        }
+        window.getInternalObj = function(item, col) {
+            let val = item.internal[col];
+            if (typeof val === 'number') { item.internal[col] = { total: val, logs: val !== 0 ? [{ date: '-', note: '舊紀錄', qty: val }] : [] }; } 
+            else if (!val) { item.internal[col] = { total: 0, logs: [] }; } return item.internal[col];
+        }
+
+        // === 彈窗渲染邏輯 ===
+        let curInstIdx = null; let curIntCtx = null;
+        
+        window.openInStockModal = function(i) { curInstIdx = i; renderInStockModal(); document.getElementById('internalModal').style.display = 'flex'; }
+        window.renderInStockModal = function() {
+            let item = items[curInstIdx]; let data = getInStockObj(item); let logsHtml = '';
+            data.logs.forEach((log, li) => { logsHtml += `<tr><td>${log.date}</td><td style="text-align:left;">${escapeHTML(log.note)}</td><td style="font-weight:600; color:#16a085;">${log.qty}</td><td><button class="btn-danger" onclick="delInLog(${li})">刪除</button></td></tr>`; });
+            document.getElementById('internal-modal-title-area').innerHTML = `<span class="modal-title-text">📥 紀錄明細</span><h3 class="modal-title-main">大貨入庫：${escapeHTML(item.id)}</h3>`;
+            let html = `<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 10px;"><span style="font-size:12px; font-weight:600; letter-spacing:1px; color:#555;">目前入庫總計 :</span><span style="font-size:28px; font-weight:600; color:#16a085;">${data.total}</span></div><div class="modal-input-group"><input type="text" id="is-log-date" value="${(new Date().getMonth()+1)+'/'+new Date().getDate()}" style="width:70px; text-align:center;"><input type="text" id="is-log-note" placeholder="備註明細" style="flex:1;"><input type="number" id="is-log-qty" placeholder="數量" style="width:70px;"><button class="btn" onclick="addInLog()">➕ 新增紀錄</button></div><table class="breakdown-table"><tr><th>日期</th><th>備註明細</th><th>數量</th><th>操作</th></tr>${logsHtml}</table>`;
+            document.getElementById('internal-modal-body').innerHTML = html;
+        }
+        window.addInLog = function() { let q = parseInt(document.getElementById('is-log-qty').value) || 0; let data = getInStockObj(items[curInstIdx]); data.logs.push({ date: document.getElementById('is-log-date').value, note: document.getElementById('is-log-note').value, qty: q }); data.total = data.logs.reduce((s, l) => s + l.qty, 0); saveData(); renderInStockModal(); renderAll(); }
+        window.delInLog = function(i) { getInStockObj(items[curInstIdx]).logs.splice(i, 1); getInStockObj(items[curInstIdx]).total = getInStockObj(items[curInstIdx]).logs.reduce((s, l) => s + l.qty, 0); saveData(); renderInStockModal(); renderAll(); }
+
+        window.openInternalModal = function(i, c) { curIntCtx = { i, c }; renderIntModal(); document.getElementById('internalModal').style.display = 'flex'; }
+        window.renderIntModal = function() {
+            let item = items[curIntCtx.i]; let data = getInternalObj(item, curIntCtx.c); let logsHtml = '';
+            data.logs.forEach((log, li) => { logsHtml += `<tr><td>${log.date}</td><td style="text-align:left;">${escapeHTML(log.note)}</td><td style="font-weight:600; color:#d35400;">${log.qty}</td><td><button class="btn-danger" onclick="delIntLog(${li})">刪除</button></td></tr>`; });
+            document.getElementById('internal-modal-title-area').innerHTML = `<span class="modal-title-text">📝 調整紀錄</span><h3 class="modal-title-main">內部帳本：${escapeHTML(item.id)} [ ${escapeHTML(curIntCtx.c)} ]</h3>`;
+            let html = `<div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 10px;"><span style="font-size:12px; font-weight:600; letter-spacing:1px; color:#555;">目前總計數量 :</span><span style="font-size:28px; font-weight:600; color:#e84118;">${data.total}</span></div><div class="modal-input-group"><input type="text" id="int-l-date" value="${(new Date().getMonth()+1)+'/'+new Date().getDate()}" style="width:70px; text-align:center;"><input type="text" id="int-l-note" placeholder="調整明細" style="flex:1;"><input type="number" id="int-l-qty" placeholder="數量" style="width:70px;"><button class="btn" onclick="addIntLog()">➕ 新增紀錄</button></div><table class="breakdown-table"><tr><th>日期</th><th>備註明細</th><th>數量</th><th>操作</th></tr>${logsHtml}</table>`;
+            document.getElementById('internal-modal-body').innerHTML = html;
+        }
+        window.addIntLog = function() { let q = parseInt(document.getElementById('int-l-qty').value) || 0; let data = getInternalObj(items[curIntCtx.i], curIntCtx.c); data.logs.push({ date: document.getElementById('int-l-date').value, note: document.getElementById('int-l-note').value, qty: q }); data.total = data.logs.reduce((s, l) => s + l.qty, 0); saveData(); renderIntModal(); renderAll(); }
+        window.delIntLog = function(i) { let data = getInternalObj(items[curIntCtx.i], curIntCtx.c); data.logs.splice(i, 1); data.total = data.logs.reduce((s, l) => s + l.qty, 0); saveData(); renderIntModal(); renderAll(); }
+
+        window.showDistRestockDetail = function(itemIdx, distName) {
+            let item = items[itemIdx]; let distData = item.distDetails[distName]; let html = `<table class="breakdown-table"><tr><th>月份</th><th>補貨數量</th><th>補貨備註</th></tr>`; let found = false;
+            monthsList.forEach(m => { let mData = distData.months[m]; if (mData.inbound > 0) { found = true; html += `<tr><td>${m}</td><td style="font-weight:bold; color:#2980b9;">${mData.inbound}</td><td style="text-align:left;">${escapeHTML(mData.note) || '--'}</td></tr>`; } });
+            if (!found) html = `<div style="padding:20px; text-align:center; color:#bbb;">目前尚無任何補貨紀錄</div>`; else html += `</table>`;
+            document.getElementById('modal-title-area').innerHTML = `<span class="modal-title-text">📋 補貨明細</span><h3 class="modal-title-main">[${escapeHTML(distName)}] ${escapeHTML(item.id)}</h3>`; document.getElementById('modal-body').innerHTML = html; document.getElementById('stockModal').style.display = 'flex';
+        }
+
+        window.showDistSalesDetail = function(itemIdx, distName) {
+            let item = items[itemIdx]; let distData = item.distDetails[distName]; let html = `<table class="breakdown-table"><tr><th>月份</th><th>銷售數量</th><th>結帳金額</th></tr>`; let ts = 0, tp = 0;
+            monthsList.forEach(m => { let mD = distData.months[m]; if (mD.sales > 0) { let pay = Math.round(item.price * mD.discount * mD.sales); ts += mD.sales; tp += pay; html += `<tr><td>${m}</td><td style="font-weight:bold; color:#d35400;">${mD.sales}</td><td>$${pay}</td></tr>`; } });
+            html += `<tr style="background:#fafafa;"><th style="color:#000;">累計總和</th><th>${ts}</th><th>$${tp}</th></tr></table>`;
+            document.getElementById('modal-title-area').innerHTML = `<span class="modal-title-text">💰 銷售累計</span><h3 class="modal-title-main">[${escapeHTML(distName)}] ${escapeHTML(item.id)}</h3>`; document.getElementById('modal-body').innerHTML = html; document.getElementById('stockModal').style.display = 'flex';
+        }
+
+        window.showBreakdown = function(index) {
+            let item = items[index]; let dt = 0; let dh = '';
+            distributors.forEach(d => { let dr = item.dist[d] || 0; dt += dr; let dd = item.distDetails[d]; let ms = 0; monthsList.forEach(m => ms += dd.months[m].sales); dh += `<tr><td style="font-weight:bold;">${escapeHTML(d)}</td><td>${dd.restock}</td><td style="color:#e84118;">-${ms}</td><td style="font-weight:bold; color:#27ae60;">${dr}</td></tr>`; });
+            let inT = getInStockObj(item).total; let intT = 0; let intHtml = '';
+            internalColumns.forEach(c => { let obj = getInternalObj(item, c); intT += obj.total; if(obj.total > 0) intHtml += `<tr><td style="font-weight:600; color:#555;">${escapeHTML(c)}</td><td style="font-weight:bold; color:#d35400;">${obj.total}</td></tr>`; });
+            let internalTableSection = intT > 0 ? `<h4 style="margin:25px 0 10px 0; font-size:12px; color:#888; letter-spacing:1px;">INTERNAL DETAILS / 內部調整明細</h4><table class="breakdown-table" style="margin-top:0; margin-bottom:20px;"><tr><th>分類</th><th>數量</th></tr>${intHtml}<tr style="background:#f9f9f9;"><th style="color:#000;">合計</th><th style="color:#e84118; font-size:14px;">${intT}</th></tr></table>` : `<h4 style="margin:25px 0 10px 0; font-size:12px; color:#888; letter-spacing:1px;">INTERNAL DETAILS / 內部調整明細</h4><div style="padding:15px; text-align:center; color:#bbb; border:1px dashed #eee; border-radius:4px; font-size:12px; margin-bottom:20px;">目前尚無內部調整紀錄</div>`;
+            let html = `<div style="background:#f9f9f9; padding:15px; border-radius:6px; margin-bottom:15px; border-left:4px solid #000; font-size:13px; color:#555;"><b style="color:#000;">倉庫庫存 : ${item.warehouse}</b> <br><small style="color:#888;">計算公式 : 總入庫(${inT}) - 內部調整(${intT}) - 各店總和(${dt})</small></div>${internalTableSection}<h4 style="margin:25px 0 10px 0; font-size:12px; color:#888; letter-spacing:1px;">DISTRIBUTORS / 經銷商明細</h4><table class="breakdown-table" style="margin-top:0;"><tr><th>經銷商</th><th>總補貨 (含首批)</th><th>累計銷售</th><th>目前剩餘</th></tr>${dh}</table>`;
+            document.getElementById('modal-title-area').innerHTML = `<span class="modal-title-text">🔍 庫存驗算明細</span><h3 class="modal-title-main">${escapeHTML(item.id)}</h3>`; document.getElementById('modal-body').innerHTML = html; document.getElementById('stockModal').style.display = 'flex';
+        };
+
+        // === 渲染函數 ===
+        window.renderOverview = function() {
+            let kw = document.getElementById('searchInput').value.toLowerCase(); let html = '';
+            items.forEach((item, index) => {
+                if (kw && !item.id.toLowerCase().includes(kw) && !item.name.toLowerCase().includes(kw)) return; 
+                let dt = 0; distributors.forEach(d => dt += (item.dist[d] || 0));
+                
+                html += `<tr>
+                    <td><button class="btn-danger" onclick="deleteItem(${index})">刪除</button></td>
+                    <td><input type="text" id="ov-id-${index}" class="id-input" value="${escapeHTML(item.id)}" onchange="updateItem(${index}, 'id', this.value)"></td>
+                    <td><input type="text" id="ov-name-${index}" class="name-input" value="${escapeHTML(item.name)}" onchange="updateItem(${index}, 'name', this.value)"></td>
+                    <td><input type="text" id="ov-size-${index}" class="short-input" value="${escapeHTML(item.size)}" onchange="updateItem(${index}, 'size', this.value)"></td>
+                    <td style="background:#f4f7f9;"><span class="clickable-number" style="color:#16a085; border-color:#16a085;" onclick="openInStockModal(${index})">${getInStockObj(item).total}</span></td>
+                    <td><input type="number" id="ov-p-${index}" class="short-input" value="${item.price}" onchange="updateItem(${index}, 'price', this.value)"></td>
+                    <td class="highlight-cell"><span class="clickable-number" onclick="showBreakdown(${index})">${item.warehouse + dt}</span></td>
+                    <td class="auto-cell">${item.warehouse}</td>
+                    <td class="highlight-cell"><span class="clickable-number" onclick="showBreakdown(${index})">${dt}</span></td>
+                </tr>`;
+            });
+            document.getElementById('overview-body').innerHTML = html;
+        }
+
+        window.renderInternal = function() {
+            let h = `<th>貨號</th><th>品名</th>`; internalColumns.forEach((c, ci) => h += `<th>${escapeHTML(c)} <button class="btn-danger" onclick="deleteInternalColumn(${ci})">刪</button></th>`);
+            document.getElementById('internal-head').innerHTML = h; let b = '';
+            items.forEach((item, index) => {
+                b += `<tr><td class="text-cell">${escapeHTML(item.id)}</td><td class="text-cell">${escapeHTML(item.name)}</td>`;
+                internalColumns.forEach(c => { let d = getInternalObj(item, c); let sc = c.replace(/"/g, '&quot;').replace(/'/g, "\\'");
+                    b += `<td class="highlight-cell"><span class="clickable-number" onclick="openInternalModal(${index}, '${sc}')">${d.total}</span></td>`;
+                }); b += `</tr>`;
+            }); document.getElementById('internal-body').innerHTML = b;
+        }
+
+        window.renderDistributorTable = function() {
+            if(!currentDist) return; let hEl = document.getElementById('dist-head'); let bEl = document.getElementById('dist-body'); let html = '';
+            if (currentDistView === '總覽') {
+                hEl.innerHTML = `<tr><th>貨號</th><th>品名</th><th style="background:#f8f9fa;">總補貨 (自動)</th><th style="color:#d35400;">銷售總和</th><th style="color:#27ae60;">剩餘庫存</th></tr>`;
+                items.forEach((item, index) => {
+                    let dd = item.distDetails[currentDist]; let ts = 0; monthsList.forEach(m => ts += dd.months[m].sales);
+                    html += `<tr><td class="text-cell">${escapeHTML(item.id)}</td><td class="text-cell">${escapeHTML(item.name)}</td>
+                        <td class="auto-cell"><span class="clickable-number" style="color:#2980b9; border-color:#2980b9;" onclick="showDistRestockDetail(${index}, '${currentDist}')">${dd.restock}</span></td>
+                        <td class="highlight-cell"><span class="clickable-number" style="color:#d35400; border-color:#d35400;" onclick="showDistSalesDetail(${index}, '${currentDist}')">${ts}</span></td>
+                        <td class="highlight-cell" style="color:#27ae60; font-weight:bold; font-size:15px;">${item.dist[currentDist]}</td></tr>`;
+                });
+            } else {
+                let m = currentDistView; let isFirstMonth = (m === monthsList[0]);
+                let carryoverHeader = isFirstMonth ? `<th>上月結轉</th>` : `<th style="background:#f8f9fa; color:#2980b9;">上月結轉 (自動)</th>`;
+                hEl.innerHTML = `<tr><th>貨號</th><th>品名</th><th>售價</th><th>折數</th>${carryoverHeader}<th style="background:#f4f7f9;">本月進貨</th><th>庫存調整</th><th>協助官方</th><th style="background:#fdfcf0;">銷售數量</th><th>本月剩餘</th><th>結帳金額</th><th>備註</th></tr>`;
+                
+                items.forEach((item, index) => {
+                    let d = item.distDetails[currentDist].months[m]; let rem = d.carryover + d.inbound + d.adj - d.assist - d.sales; let pay = Math.round(item.price * d.discount * d.sales);
+                    let carryoverCell = isFirstMonth ? `<td><input type="number" class="short-input" value="${d.carryover}" onchange="updateDistMonth(${index}, '${currentDist}', '${m}', 'carryover', this.value)"></td>` : `<td class="auto-cell" style="color:#2980b9;">${d.carryover}</td>`;
+
+                    html += `<tr><td class="text-cell">${escapeHTML(item.id)}</td><td class="text-cell">${escapeHTML(item.name)}</td><td style="font-weight:500;">$${item.price}</td>
+                        <td><input type="number" step="0.01" class="short-input" value="${d.discount}" onchange="updateDistMonth(${index}, '${currentDist}', '${m}', 'discount', this.value)"></td>
+                        ${carryoverCell}
+                        <td style="background:#f4f7f9;"><input type="number" class="short-input" style="font-weight:bold; color:#16a085;" value="${d.inbound}" onchange="updateDistMonth(${index}, '${currentDist}', '${m}', 'inbound', this.value)"></td>
+                        <td><input type="number" class="short-input" value="${d.adj}" onchange="updateDistMonth(${index}, '${currentDist}', '${m}', 'adj', this.value)"></td>
+                        <td><input type="number" class="short-input" value="${d.assist}" onchange="updateDistMonth(${index}, '${currentDist}', '${m}', 'assist', this.value)"></td>
+                        <td style="background:#fdfcf0;"><input type="number" class="short-input" style="font-weight:bold; color:#d35400;" value="${d.sales}" onchange="updateDistMonth(${index}, '${currentDist}', '${m}', 'sales', this.value)"></td>
+                        <td class="highlight-cell" style="font-weight:bold;">${rem}</td><td class="highlight-cell" style="color:#27ae60; font-weight:bold;">$${pay}</td>
+                        <td><input type="text" class="name-input" value="${escapeHTML(d.note)}" onchange="updateDistMonth(${index}, '${currentDist}', '${m}', 'note', this.value)"></td></tr>`;
+                });
+            }
+            bEl.innerHTML = html;
+        }
+
+        window.syncDistData = function() { 
+            items.forEach(item => { if (!item.distDetails) item.distDetails = {}; let dt = 0; distributors.forEach(d => { 
+                    if (!item.distDetails[d]) item.distDetails[d] = { inbound: 0, restock: 0, months: {} }; let tr = 0; let prevRemain = 0;
+                    monthsList.forEach((m, idx) => { if (!item.distDetails[d].months[m]) item.distDetails[d].months[m] = { carryover: 0, inbound: 0, adj: 0, assist: 0, sales: 0, discount: 0.65, note: '' };
+                        let md = item.distDetails[d].months[m]; if (idx > 0) md.carryover = prevRemain;
+                        let currentRemain = md.carryover + md.inbound + md.adj - md.assist - md.sales; prevRemain = currentRemain; tr += md.inbound; 
+                    }); 
+                    item.distDetails[d].restock = tr; item.dist[d] = prevRemain; dt += item.dist[d]; 
+                }); 
+                let it = 0; internalColumns.forEach(c => it += getInternalObj(item, c).total); item.warehouse = getInStockObj(item).total - it - dt; 
+            }); 
+        }
+
+        window.renderAll = function() { let aid = document.activeElement?document.activeElement.id:null; syncDistData(); renderOverview(); renderInternal(); renderDistTabs(); renderDistributorTable(); if(aid){let el=document.getElementById(aid); if(el)el.focus();} }
+        window.updateDistMonth = function(i, d, m, f, v) { let detail = items[i].distDetails[d].months[m]; detail[f] = (f === 'discount')?parseFloat(v):(f === 'note'?v:parseInt(v)); saveData(); renderAll(); }
+        window.updateItem = function(i, k, v) { items[i][k] = (['id','name','size'].includes(k))?v:parseInt(v); saveData(); renderAll(); }
+        window.addNewItem = function() { items.unshift({ id: '新貨號', name: '新品名', size: 'F', inStock: {total:0, logs:[]}, price: 0, warehouse: 0, internal: {}, dist: {}, distDetails: {} }); saveData(); renderAll(); }
+        window.deleteItem = function(i) { if(confirm('確定要刪除嗎？')) { items.splice(i, 1); saveData(); renderAll(); } }
+        window.addInternalColumn = function() { let v = document.getElementById('new-col-name').value.trim(); if(v && !internalColumns.includes(v)){ internalColumns.push(v); document.getElementById('new-col-name').value=''; saveData(); renderAll(); } }
+        window.deleteInternalColumn = function(i) { if(confirm('確定刪除？')) { internalColumns.splice(i, 1); saveData(); renderAll(); } }
+        window.addDistributor = function() { let v = document.getElementById('new-dist-name').value.trim(); if(v && !distributors.includes(v)){ distributors.push(v); distColors[v] = document.getElementById('new-dist-color').value; currentDist = v; saveData(); renderAll(); } }
+        window.updateDistColor = function(c) { if(currentDist){ distColors[currentDist] = c; saveData(); renderAll(); } }
+        window.addNextMonth = function() { let max = 0; monthsList.forEach(m => { let n = parseInt(m); if(n > max) max = n; }); if(max < 12) { monthsList.push((max+1)+'月'); saveData(); renderAll(); } }
+        window.selectDist = function(d) { currentDist = d; currentDistView = '總覽'; renderAll(); }
+        window.changeDistView = function(v) { currentDistView = v; renderAll(); }
+        window.openTab = function(e, n) { let i, tc, tl; tc = document.getElementsByClassName("tabcontent"); for (i = 0; i < tc.length; i++) tc[i].style.display = "none"; tl = document.getElementsByClassName("tablinks"); for (i = 0; i < tl.length; i++) tl[i].className = tl[i].className.replace(" active", ""); document.getElementById(n).style.display = "block"; e.currentTarget.className += " active"; }
+        window.renderDistTabs = function() {
+            let h1 = ''; distributors.forEach(d => h1 += `<button class="btn-dist ${currentDist===d?'active':''}" style="border-bottom: 4px solid ${distColors[d]};" onclick="selectDist('${d}')">${escapeHTML(d)}</button>`);
+            document.getElementById('dist-level1-tabs').innerHTML = h1; if(!currentDist) return;
+            document.getElementById('current-dist-title').innerText = `📋 [ ${escapeHTML(currentDist)} ] 庫存管理`;
+            let h2 = `<button class="btn-sub ${currentDistView==='總覽'?'active':''}" onclick="changeDistView('總覽')">📊 進貨總覽</button>`;
+            monthsList.forEach(m => h2 += `<button class="btn-sub ${currentDistView===m?'active':''}" onclick="changeDistView('${m}')">${m} 明細</button>`);
+            h2 += `<button class="btn-sub btn-add-month" onclick="addNextMonth()">➕ 新增下個月</button>`;
+            document.getElementById('dist-month-tabs').innerHTML = h2;
+        }
+
+        // === 啟動應用程式 ===
+        document.getElementById("defaultOpen").click(); 
+        loadData(); 
+    </script>
+</body>
+</html>

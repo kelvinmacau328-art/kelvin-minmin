@@ -1,0 +1,174 @@
+/* ==========================================================================
+   FE3C SYSTEM - CHROME MINIMALIST (加強操作體驗版 UX Optimized)
+   ========================================================================== */
+
+/* === 核心排版與色調 === */
+body { 
+    font-family: 'Helvetica Neue', Arial, 'Microsoft JhengHei', sans-serif; 
+    padding: 40px; 
+    background-color: #ffffff; 
+    color: #111111; 
+    letter-spacing: 0.5px; 
+}
+
+h2 { 
+    font-weight: 300; 
+    letter-spacing: 2px; 
+    border-bottom: 2px solid #000; 
+    padding-bottom: 20px; 
+    margin-bottom: 40px; 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: flex-end; 
+    text-transform: uppercase;
+}
+
+h2 span { 
+    font-size: 12px; 
+    font-weight: 600; 
+    color: #888; 
+    letter-spacing: 1px; 
+}
+
+/* === 頂層導航標籤 (Tabs) === */
+.tab { 
+    display: flex; 
+    border-bottom: 1px solid #e0e0e0; 
+    margin-bottom: 30px; 
+}
+
+.tab button { 
+    background: transparent; 
+    border: none; 
+    outline: none; 
+    cursor: pointer; 
+    padding: 15px 30px; 
+    font-size: 13px; 
+    font-weight: 600; 
+    letter-spacing: 1px; 
+    color: #aaa; 
+    transition: 0.3s; 
+    text-transform: uppercase; 
+}
+
+.tab button:hover { color: #555; }
+.tab button.active { color: #000; border-bottom: 3px solid #000; }
+.tabcontent { display: none; padding: 0; animation: fadeIn 0.4s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* === 經銷商子導航 === */
+.dist-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px; }
+.btn-dist { 
+    padding: 10px 24px; 
+    background: #f8f9fa; 
+    border: 1px solid #ddd; 
+    cursor: pointer; 
+    font-size: 12px; 
+    font-weight: 600; 
+    color: #555; 
+    transition: all 0.2s ease; 
+    letter-spacing: 1px; 
+    text-transform: uppercase; 
+    border-radius: 4px; /* 微微的圓角增加按鈕感 */
+}
+.btn-dist:hover { border-color: #000; color: #000; background: #fff; transform: translateY(-1px); box-shadow: 0 2px 5px rgba(0,0,0,0.05);}
+.btn-dist.active { background: #000; color: #fff; border-color: #000; box-shadow: 0 4px 10px rgba(0,0,0,0.15);}
+
+.sub-tab { margin-top: 20px; margin-bottom: 20px; display: flex; gap: 8px; flex-wrap: wrap; border-bottom: 1px solid #f0f0f0; padding-bottom: 15px;}
+.btn-sub { padding: 8px 16px; background-color: transparent; border: 1px solid transparent; border-radius: 4px; cursor: pointer; font-size: 12px; color: #888; transition: 0.2s; letter-spacing: 1px;}
+.btn-sub:hover { background-color: #f0f0f0; color: #000; }
+.btn-sub.active { background: #ececec; color: #000; border-color: #ccc; font-weight: 600; }
+.btn-add-month { border: 1px dashed #bbb; color: #555; }
+.btn-add-month:hover { border-color: #000; background: #000; color: #fff; }
+
+/* === 表格設計 === */
+.table-container { width: 100%; overflow-x: auto; margin-top: 20px; padding-bottom: 20px;}
+table { width: 100%; border-collapse: collapse; border-top: 2px solid #000; border-bottom: 2px solid #000; }
+th, td { border: none; border-bottom: 1px solid #eee; padding: 12px 8px; white-space: nowrap; text-align: center; vertical-align: middle; }
+th { padding: 18px 8px; background-color: #fcfcfc; color: #333; font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid #ccc; }
+/* 滑鼠移到該列時的高亮提示 */
+tr:hover td { background-color: #f4f6f8; }
+
+/* === 輸入框 (強化操作感) === */
+input { 
+    width: 100%; height: 100%; padding: 8px 10px; box-sizing: border-box; 
+    border: 1px solid #e0e0e0; /* 明確的邊框 */
+    background-color: #fdfdfd; /* 微凸顯的底色 */
+    border-radius: 4px; /* 微圓角比較不生硬 */
+    text-align: center; font-size: 13px; font-weight: 500; 
+    outline: none; transition: all 0.2s ease; font-family: inherit; 
+    color: #000;
+}
+input.name-input { text-align: left; min-width: 180px; }
+input.id-input { text-align: left; min-width: 100px; font-weight: 600; }
+input.short-input { min-width: 60px; } 
+
+/* 正在輸入時的強烈提示 */
+input:focus { 
+    border-color: #000; 
+    background-color: #fff; 
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.08); 
+    transform: translateY(-1px);
+}
+
+.search-box { padding: 10px 15px; width: 250px; border: 1px solid #ccc; background: #fafafa; font-size: 12px; letter-spacing: 1px; outline: none; border-radius: 20px; }
+.search-box:focus { border-color: #000; background: #fff; box-shadow: 0 0 0 3px rgba(0,0,0,0.05);}
+
+/* === 數據網格字體 === */
+.text-cell { font-size: 13px; }
+
+/* === 可點擊的數字標籤 (按鈕化) === */
+.clickable-number { 
+    cursor: pointer; 
+    display: inline-block;
+    padding: 6px 12px;
+    border: 1px dashed #a0aab5; /* 虛線代表可點擊/可展開 */
+    background-color: #f4f7f9; /* 淡淡的冷藍灰底色 */
+    border-radius: 6px;
+    font-weight: 600; 
+    color: #2c3e50; 
+    transition: all 0.2s ease; 
+}
+.clickable-number:hover { 
+    background-color: #000; 
+    color: #fff !important; 
+    border-style: solid;
+    border-color: #000;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.auto-cell { font-weight: bold; color: #2980b9; padding: 10px; text-align: center; font-size: 14px; } 
+
+/* === 按鈕 === */
+.btn { 
+    padding: 10px 20px; background-color: #000; color: #fff; 
+    border: 1px solid #000; border-radius: 4px; cursor: pointer; 
+    font-size: 11px; font-weight: 600; letter-spacing: 1px; 
+    text-transform: uppercase; transition: all 0.2s ease; 
+}
+.btn:hover { background-color: #333; transform: translateY(-1px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+.btn-outline { background-color: #fff; color: #000; border-color: #ccc; }
+.btn-outline:hover { background-color: #f0f0f0; color: #000; border-color: #000;}
+.btn-danger { background-color: #fff; border: 1px solid #e74c3c; color: #e74c3c; padding: 4px 10px; font-size: 10px; margin: 0; border-radius: 4px; transition: 0.2s; text-transform: uppercase; font-weight: bold;}
+.btn-danger:hover { background-color: #e74c3c; color: #fff; }
+.controls { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;}
+
+/* === 彈窗 Modal === */
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(3px);}
+.modal-content { background: #fff; padding: 40px; border: none; width: 90%; max-width: 650px; box-shadow: 0 20px 50px rgba(0,0,0,0.2); max-height: 85vh; overflow-y: auto; position: relative; border-radius: 8px;}
+.close-btn { position: absolute; top: 20px; right: 25px; cursor: pointer; font-size: 32px; font-weight: 300; color: #888; transition: 0.2s; line-height: 1;}
+.close-btn:hover { color: #e74c3c; transform: scale(1.1);}
+
+.modal-title-text { font-size: 12px; color: #888; letter-spacing: 1px; margin-bottom: 5px; display: block; text-transform: uppercase; }
+.modal-title-main { font-size: 24px; font-weight: 600; color: #000; margin-top: 0; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0;}
+
+.breakdown-table { width: 100%; margin-top: 20px; border-collapse: collapse; font-size: 13px;}
+.breakdown-table th, .breakdown-table td { border-bottom: 1px solid #e0e0e0; padding: 15px 10px; text-align: center; height: auto;}
+.breakdown-table th { background-color: #f8f9fa; color: #555; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; border-bottom: 2px solid #ccc;}
+
+/* Modal 內的輸入區塊 */
+.modal-input-group { background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 20px; margin-bottom: 25px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-left: 4px solid #000;}
+.modal-input-group input { border: 1px solid #ccc; padding: 10px; background: #fff; }
+.modal-input-group input:focus { border-color: #000; box-shadow: 0 0 0 2px rgba(0,0,0,0.1); }
+.modal-input-group .btn { margin: 0; padding: 10px 15px;}
